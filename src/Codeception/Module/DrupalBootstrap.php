@@ -1,6 +1,6 @@
 <?php
 
-namespace Helper;
+namespace Codeception\Module;
 
 use Codeception\Configuration;
 use Codeception\Lib\ModuleContainer;

@@ -110,8 +110,8 @@ class DrupalBootstrap extends Module {
     }
   }
 
-  public function getNgnixUrl(){
-    return $this->config['ngnix_url'];
+  public function getNginxUrl(){
+    return $this->config['nginx_url'];
   }
 
   /**

@@ -7,27 +7,21 @@ use Codeception\Lib\ModuleContainer;
 use Codeception\Module;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Logger\RfcLogLevel;
-use Drupal\user\Entity\Role;
 use Drupal\user\Entity\User;
-use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\HttpFoundation\Request;
 use Codeception\TestDrupalKernel;
+use Faker\Factory as Faker;
 
 /**
  * Class DrupalBootstrap
  */
 class DrupalBootstrap extends Module {
-  /**
-   * A list of all of the available roles on our Drupal site.
-   * @var \Drupal\Core\Entity\EntityInterface[]|static[]
-   */
-  protected $roles;
 
   /**
-   * An output helper so we can add some custom output when tests run.
-   * @var \Symfony\Component\Console\Output\ConsoleOutput
+   * A list of user ids created during test suite.
+   * @var []
    */
-  protected $output;
+  protected $users;
 
   /**
    * DrupalBootstrap constructor.
@@ -35,25 +29,16 @@ class DrupalBootstrap extends Module {
   public function __construct(ModuleContainer $container, $config = null) {
     $this->config = array_merge(
       [
-        'drupal_root' => Configuration::projectDir() . 'web',
-        'site_path' => 'sites/test',
-        'create_users' => true,
-        'destroy_users' => true,
-        'test_user_pass' => 'test',
+        'drupal_root' => Configuration::projectDir(),
+        'site_path' => 'sites/default',
       ],
       (array)$config
     );
-
     $autoloader = require $this->config['drupal_root'] . '/autoload.php';
     $kernel = new TestDrupalKernel('prod',$autoloader, $this->config['drupal_root']);
     $request = Request::createFromGlobals();
     $response = $kernel->handle($request);
     $kernel->terminate($request, $response);
-
-    $this->output = new ConsoleOutput();
-
-    $this->roles = Role::loadMultiple();
-
     parent::__construct($container);
   }
 
@@ -61,14 +46,9 @@ class DrupalBootstrap extends Module {
    * Setup Test environment.
    */
   public function _beforeSuite($settings = []) {
-
     if (\Drupal::moduleHandler()->isLoaded('dblog')) {
       // Clear log entries from the database log.
       \Drupal::database()->truncate('watchdog')->execute();
-    }
-
-    if ($this->config['create_users']) {
-      $this->scaffoldTestUsers();
     }
   }
 
@@ -76,16 +56,19 @@ class DrupalBootstrap extends Module {
    * Tear down after tests.
    */
   public function _afterSuite() {
-    if ($this->config['destroy_users']) {
-      $this->tearDownTestUsers();
+
+    if (isset($this->users)) {
+      $users = User::loadMultiple($this->users);
+      /** @var \Drupal\user\Entity\User $user */
+      foreach ($users as $user) {
+        $user->delete();
+      }
     }
 
     if (\Drupal::moduleHandler()->isLoaded('dblog')) {
-
       // Load any database log entries of level WARNING or more serious.
       $query = \Drupal::database()->select('watchdog', 'w');
       $query->fields('w', ['type', 'severity', 'message', 'variables']);
-
       $php_notices = $query->andConditionGroup()
         ->condition('severity', RfcLogLevel::NOTICE, '<=')
         ->condition('type', 'php');
@@ -95,10 +78,8 @@ class DrupalBootstrap extends Module {
       $group = $query->orConditionGroup()
         ->condition($php_notices)
         ->condition($other_warnings);
-
       $query->condition($group);
       $result = $query->execute();
-
       foreach ($result as $row) {
         // Build a readable message and declare a failure.
         $variables = @unserialize($row->variables);
@@ -110,42 +91,39 @@ class DrupalBootstrap extends Module {
     }
   }
 
-  public function getNginxUrl(){
-    return $this->config['nginx_url'];
+  /**
+   * @return string
+   */
+  public function getNginxUrl() {
+    if (isset($this->config['nginx_url'])) {
+      return $this->config['nginx_url'];
+    }
+    return 'undefined';
   }
 
   /**
-   * Create a test user based on a role.
+   * Create test user with specified roles
    *
-   * @param string $role
+   * @param array $roles
    *
-   * @return $this
+   * @return \Drupal\user\Entity\User
    */
-  public function createTestUser($role = 'administrator') {
-    if ($role != 'anonymous' && !$this->userExists($role)) {
-//      $this->output->writeln("creating test{$role}User...");
-      User::create([
-        'name' => "test{$role}User",
-        'mail' => "test{$role}User@example.com",
-        'roles' => [$role],
-        'pass' => "test{$role}User",
-        'status' => 1,
-      ])->save();
-    }
-    return $this;
-  }
+  public function createUserWithRoles($roles = ['authenticated'], $password = False) {
+    $faker = Faker::create();
+    /** @var \Drupal\user\Entity\User $user */
+    $user = User::create([
+      'name' => $faker->userName,
+      'mail' => $faker->email,
+      'roles' => $roles,
+      'pass' => $password ? $password : $faker->password(12,14),
+      'status' => 1,
+    ]);
 
-  /**
-   * Destroy a user that matches a test user name.
-   *
-   * @param $role
-   * @return $this
-   */
-  public function destroyTestUser($role) {
-    if ($role != 'anonymous') {
-      $this->deleteUser("test{$role}User");
-    }
-    return $this;
+    $user->save();
+
+    $this->users[] = $user->id();
+
+    return $user;
   }
 
   /**
@@ -163,33 +141,5 @@ class DrupalBootstrap extends Module {
     }
   }
 
-  /**
-   * Create a test user for each role in Drupal database.
-   *
-   * @return $this
-   */
-  public function scaffoldTestUsers() {
-    array_map([$this, 'createTestUser'], array_keys($this->roles));
-    return $this;
-  }
 
-  /**
-   * Remove all users matching test user names.
-   *
-   * @return $this
-   */
-  public function tearDownTestUsers() {
-    array_map([$this, 'destroyTestUser'], array_keys($this->roles));
-    return $this;
-  }
-
-  /**
-   * @param $role
-   * @return bool
-   */
-  private function userExists($role) {
-    return !empty(\Drupal::entityQuery('user')
-      ->condition('name', "test{$role}User")
-      ->execute());
-  }
 }

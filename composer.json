@@ -9,7 +9,8 @@
         }
     ],
     "require": {
-        "codeception/codeception": "^2.1"
+        "codeception/codeception": "^2.1",
+        "fzaninotto/faker": "^1.6"
     },
     "require-dev": {
         "composer/installers": "^1",

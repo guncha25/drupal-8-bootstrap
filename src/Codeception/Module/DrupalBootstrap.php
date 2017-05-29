@@ -72,12 +72,8 @@ class DrupalBootstrap extends Module {
       $php_notices = $query->andConditionGroup()
         ->condition('severity', RfcLogLevel::NOTICE, '<=')
         ->condition('type', 'php');
-      $other_warnings = $query->andConditionGroup()
-        ->condition('severity', RfcLogLevel::WARNING, '<=')
-        ->condition('type', 'php', '<>');
       $group = $query->orConditionGroup()
-        ->condition($php_notices)
-        ->condition($other_warnings);
+        ->condition($php_notices);
       $query->condition($group);
       $result = $query->execute();
       foreach ($result as $row) {

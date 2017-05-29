@@ -9,7 +9,7 @@ use Drupal\Component\Utility\Xss;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\user\Entity\User;
 use Symfony\Component\HttpFoundation\Request;
-use Codeception\TestDrupalKernel;
+use Drupal\Core\DrupalKernel;
 use Faker\Factory as Faker;
 
 /**
@@ -34,11 +34,21 @@ class DrupalBootstrap extends Module {
       ],
       (array)$config
     );
-    $autoloader = require $this->config['drupal_root'] . '/autoload.php';
-    $kernel = new TestDrupalKernel('prod',$autoloader, $this->config['drupal_root']);
+
+    $_SERVER['SERVER_PORT'] = null;
+    $_SERVER['REQUEST_URI'] = '/';
+    $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+    $_SERVER['REQUEST_METHOD'] = 'GET';
+    $_SERVER['SERVER_SOFTWARE'] = null;
+    $_SERVER['HTTP_USER_AGENT'] = null;
+    $_SERVER['PHP_SELF'] = $_SERVER['REQUEST_URI'] . 'index.php';
+    $_SERVER['SCRIPT_NAME'] = $_SERVER['PHP_SELF'];
+    $_SERVER['SCRIPT_FILENAME'] = $this->config['drupal_root'] . '/index.php';
     $request = Request::createFromGlobals();
-    $response = $kernel->handle($request);
-    $kernel->terminate($request, $response);
+    $autoloader = require $this->config['drupal_root'] . '/autoload.php';
+    $kernel = DrupalKernel::createFromRequest($request, $autoloader, 'prod');
+    $kernel->boot();
+    $kernel->prepareLegacyRequest($request);
     parent::__construct($container);
   }
 
@@ -68,13 +78,9 @@ class DrupalBootstrap extends Module {
     if (\Drupal::moduleHandler()->isLoaded('dblog')) {
       // Load any database log entries of level WARNING or more serious.
       $query = \Drupal::database()->select('watchdog', 'w');
-      $query->fields('w', ['type', 'severity', 'message', 'variables']);
-      $php_notices = $query->andConditionGroup()
+      $query->fields('w', ['type', 'severity', 'message', 'variables'])
         ->condition('severity', RfcLogLevel::NOTICE, '<=')
         ->condition('type', 'php');
-      $group = $query->orConditionGroup()
-        ->condition($php_notices);
-      $query->condition($group);
       $result = $query->execute();
       foreach ($result as $row) {
         // Build a readable message and declare a failure.
@@ -136,6 +142,5 @@ class DrupalBootstrap extends Module {
       $user->delete();
     }
   }
-
 
 }

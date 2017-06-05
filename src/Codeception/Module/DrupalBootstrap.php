@@ -94,6 +94,13 @@ class DrupalBootstrap extends Module {
   }
 
   /**
+   * @param $uid
+   */
+  public function addUsers ($uid) {
+    $this->users[] = $uid;
+  }
+
+  /**
    * @return string
    */
   public function getNginxUrl() {

@@ -99,6 +99,14 @@ class DrupalBootstrap extends Module {
   public function addUsers ($uid) {
     $this->users[] = $uid;
   }
+  
+  /**
+   * @return mixed
+   */
+  public function getDrupalRoot () {
+    return $this->config['drupal_root'];
+  }
+
 
   /**
    * @return string

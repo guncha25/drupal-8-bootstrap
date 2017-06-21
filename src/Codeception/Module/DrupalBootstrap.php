@@ -56,7 +56,7 @@ class DrupalBootstrap extends Module {
    * Setup Test environment.
    */
   public function _beforeSuite($settings = []) {
-    if (\Drupal::moduleHandler()->isLoaded('dblog')) {
+    if (\Drupal::moduleHandler()->moduleExists('dblog')) {
       // Clear log entries from the database log.
       \Drupal::database()->truncate('watchdog')->execute();
     }
@@ -75,7 +75,7 @@ class DrupalBootstrap extends Module {
       }
     }
 
-    if (\Drupal::moduleHandler()->isLoaded('dblog')) {
+    if (\Drupal::moduleHandler()->moduleExists('dblog')) {
       // Load any database log entries of level WARNING or more serious.
       $query = \Drupal::database()->select('watchdog', 'w');
       $query->fields('w', ['type', 'severity', 'message', 'variables'])

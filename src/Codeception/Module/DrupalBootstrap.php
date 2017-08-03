@@ -29,7 +29,7 @@ class DrupalBootstrap extends Module {
   public function __construct(ModuleContainer $container, $config = null) {
     $this->config = array_merge(
       [
-        'drupal_root' => Configuration::projectDir(),
+        'drupal_root' => Configuration::projectDir() . 'web',
         'site_path' => 'sites/default',
       ],
       (array)$config

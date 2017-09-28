@@ -31,6 +31,7 @@ class DrupalBootstrap extends Module {
       [
         'drupal_root' => Configuration::projectDir() . 'web',
         'site_path' => 'sites/default',
+        'check_logs' => False
       ],
       (array)$config
     );
@@ -75,20 +76,22 @@ class DrupalBootstrap extends Module {
       }
     }
 
-    if (\Drupal::moduleHandler()->moduleExists('dblog')) {
-      // Load any database log entries of level WARNING or more serious.
-      $query = \Drupal::database()->select('watchdog', 'w');
-      $query->fields('w', ['type', 'severity', 'message', 'variables'])
-        ->condition('severity', RfcLogLevel::NOTICE, '<=')
-        ->condition('type', 'php');
-      $result = $query->execute();
-      foreach ($result as $row) {
-        // Build a readable message and declare a failure.
-        $variables = @unserialize($row->variables);
-        $message = $row->type . ' - ';
-        $message .= RfcLogLevel::getLevels()[$row->severity] . ': ';
-        $message .= t(Xss::filterAdmin($row->message), $variables)->render();
-        $this->fail($message);
+    if ($this->config['check_logs']) {
+      if (\Drupal::moduleHandler()->moduleExists('dblog')) {
+        // Load any database log entries of level WARNING or more serious.
+        $query = \Drupal::database()->select('watchdog', 'w');
+        $query->fields('w', ['type', 'severity', 'message', 'variables'])
+          ->condition('severity', RfcLogLevel::NOTICE, '<=')
+          ->condition('type', 'php');
+        $result = $query->execute();
+        foreach ($result as $row) {
+          // Build a readable message and declare a failure.
+          $variables = @unserialize($row->variables);
+          $message = $row->type . ' - ';
+          $message .= RfcLogLevel::getLevels()[$row->severity] . ': ';
+          $message .= t(Xss::filterAdmin($row->message), $variables)->render();
+          $this->fail($message);
+        }
       }
     }
   }

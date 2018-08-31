@@ -45,6 +45,9 @@ class DrupalBootstrap extends Module {
     $_SERVER['PHP_SELF'] = $_SERVER['REQUEST_URI'] . 'index.php';
     $_SERVER['SCRIPT_NAME'] = $_SERVER['PHP_SELF'];
     $_SERVER['SCRIPT_FILENAME'] = $this->config['drupal_root'] . '/index.php';
+    if (isset($this->config['http_host'])) {
+      $_SERVER['HTTP_HOST'] = $this->config['http_host'];
+    }
     $request = Request::createFromGlobals();
     $autoloader = require $this->config['drupal_root'] . '/autoload.php';
     $kernel = DrupalKernel::createFromRequest($request, $autoloader, 'prod');

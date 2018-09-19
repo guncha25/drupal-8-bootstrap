@@ -13,35 +13,36 @@ use Drupal\Core\DrupalKernel;
 use Faker\Factory as Faker;
 
 /**
- * Class DrupalBootstrap
+ * Class DrupalBootstrap.
  */
 class DrupalBootstrap extends Module {
 
   /**
    * A list of user ids created during test suite.
-   * @var []
+   *
+   * @var array
    */
   protected $users;
 
   /**
    * DrupalBootstrap constructor.
    */
-  public function __construct(ModuleContainer $container, $config = null) {
+  public function __construct(ModuleContainer $container, $config = NULL) {
     $this->config = array_merge(
       [
         'drupal_root' => Configuration::projectDir() . 'web',
         'site_path' => 'sites/default',
-        'check_logs' => False
+        'check_logs' => FALSE,
       ],
-      (array)$config
+      (array) $config
     );
 
-    $_SERVER['SERVER_PORT'] = null;
+    $_SERVER['SERVER_PORT'] = NULL;
     $_SERVER['REQUEST_URI'] = '/';
     $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
     $_SERVER['REQUEST_METHOD'] = 'GET';
-    $_SERVER['SERVER_SOFTWARE'] = null;
-    $_SERVER['HTTP_USER_AGENT'] = null;
+    $_SERVER['SERVER_SOFTWARE'] = NULL;
+    $_SERVER['HTTP_USER_AGENT'] = NULL;
     $_SERVER['PHP_SELF'] = $_SERVER['REQUEST_URI'] . 'index.php';
     $_SERVER['SCRIPT_NAME'] = $_SERVER['PHP_SELF'];
     $_SERVER['SCRIPT_FILENAME'] = $this->config['drupal_root'] . '/index.php';
@@ -60,7 +61,7 @@ class DrupalBootstrap extends Module {
    * Setup Test environment.
    */
   public function _beforeSuite($settings = []) {
-    if (\Drupal::moduleHandler()->moduleExists('dblog')) {
+    if ($this->config['check_logs'] && \Drupal::moduleHandler()->moduleExists('dblog')) {
       // Clear log entries from the database log.
       \Drupal::database()->truncate('watchdog')->execute();
     }
@@ -81,6 +82,7 @@ class DrupalBootstrap extends Module {
 
     if ($this->config['check_logs']) {
       if (\Drupal::moduleHandler()->moduleExists('dblog')) {
+        // @todo Make log levels configurable
         // Load any database log entries of level WARNING or more serious.
         $query = \Drupal::database()->select('watchdog', 'w');
         $query->fields('w', ['type', 'severity', 'message', 'variables'])
@@ -100,45 +102,78 @@ class DrupalBootstrap extends Module {
   }
 
   /**
-   * @param $uid
+   * Adds user id to user list created during test.
+   *
+   * @param string $uid
+   *   User id.
    */
-  public function addUsers ($uid) {
+  public function addUsers($uid) {
     $this->users[] = $uid;
   }
-  
+
   /**
+   * Returns drupal root path.
+   *
    * @return mixed
+   *   Returns path.
+   *
+   * @deprecated
+   *   Variable usage too specific.
+   *   Use getConfig($key) instead.
    */
-  public function getDrupalRoot () {
-    return $this->config['drupal_root'];
+  public function getDrupalRoot() {
+    return $this->getConfig('drupal_root');
   }
 
-
   /**
+   * Returns nginx url variable.
+   *
    * @return string
+   *   Returns url.
+   *
+   * @deprecated
+   *   Variable usage too specific.
+   *   Use getConfig($key) instead.
    */
   public function getNginxUrl() {
-    if (isset($this->config['nginx_url'])) {
-      return $this->config['nginx_url'];
-    }
-    return 'undefined';
+    return $this->getConfig('nginx_url');
   }
 
   /**
-   * Create test user with specified roles
+   * Returns configuration.
+   *
+   * @param string $key
+   *   Name of configuration variable.
+   *
+   * @return mixed
+   *   Returns configuration variable or FALSE.
+   */
+  public function getConfig($key) {
+    if (isset($this->config[$key])) {
+      return $this->config[$key];
+    }
+    return FALSE;
+  }
+
+  /**
+   * Create test user with specified roles.
    *
    * @param array $roles
+   *   List of user roles.
+   * @param mixed $password
+   *   Password.
    *
    * @return \Drupal\user\Entity\User
+   *   User object.
    */
-  public function createUserWithRoles($roles = ['authenticated'], $password = False) {
+  public function createUserWithRoles(array $roles = ['authenticated'], $password = FALSE) {
     $faker = Faker::create();
     /** @var \Drupal\user\Entity\User $user */
     $user = User::create([
       'name' => $faker->userName,
       'mail' => $faker->email,
       'roles' => $roles,
-      'pass' => $password ? $password : $faker->password(12,14),
+      'pass' => $password ? $password : $faker->password(12, 14),
       'status' => 1,
     ]);
 
@@ -150,7 +185,10 @@ class DrupalBootstrap extends Module {
   }
 
   /**
-   * @param $username
+   * Deletes user by username.
+   *
+   * @param string $username
+   *   Username.
    */
   public function deleteUser($username) {
     $users = \Drupal::entityQuery('user')
@@ -165,11 +203,13 @@ class DrupalBootstrap extends Module {
   }
 
   /**
-   * @param $module_name
+   * Enables module.
+   *
+   * @param string $module_name
+   *   Module name.
    */
   public function enableModule($module_name) {
     \Drupal::service('module_installer')->install([$module_name]);
   }
-
 
 }
